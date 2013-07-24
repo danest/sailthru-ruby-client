@@ -559,6 +559,7 @@ module Sailthru
     # Delete a piece of content from Sailthru.
     # http://docs.sailthru.com/api/content
     def delete_content(url)
+      data = {}
       data[:url] = url
       api_delete(:content, data)
     end
