@@ -415,6 +415,25 @@ module Sailthru
         return false
       end
     end
+    
+    # params:
+    #   params, Hash
+    #   request, String
+    # returns:
+    #   TrueClass or FalseClass, Returns true if the incoming request is an authenticated hardbounce post.
+    def receive_hardbounce_post(params, request)
+      if request.post?
+        [:action, :email, :sig].each { |key| return false unless params.has_key?(key) }
+
+        return false unless params[:action] == :hardbounce
+
+        sig = params.delete(:sig)
+        return false unless sig == get_signature_hash(params, @secret)
+        return true
+      else
+        return false
+      end
+    end
 
     # params:
     #   email, String
@@ -728,6 +747,76 @@ module Sailthru
         api_post(:user, data)
     end
 
+  # params
+  # Get an existing trigger
+    def get_triggers()
+        api_get(:trigger, {})
+    end
+
+  # params
+  #   template, String
+  #   trigger_id, String
+  # Get an existing trigger
+    def get_trigger_by_template(template, trigger_id = nil)
+        data = {}
+        data['template'] = template
+        if trigger_id != nil then data['trigger_id'] = trigger_id end
+        api_get(:trigger, data)
+    end
+
+  # params
+  #   event, String
+  # Get an existing trigger
+    def get_trigger_by_event(event)
+        data = {}
+        data['event'] = event
+        api_get(:trigger, data)
+    end
+
+  # params
+  #   template, String
+  #   time, String
+  #   time_unit, String
+  #   event, String
+  #   zephyr, String
+  # Create or update a trigger
+    def post_template_trigger(template, time, time_unit, event, zephyr)
+        data = {}
+        data['template'] = template
+        data['time'] = time
+        data['time_unit'] = time_unit
+        data['event'] = event
+        data['zephyr'] = zephyr
+        api_post(:trigger, data)
+    end
+
+  # params
+  #   template, String
+  #   time, String
+  #   time_unit, String
+  #   zephyr, String
+  # Create or update a trigger
+    def post_event_trigger(event, time, time_unit, zephyr)
+        data = {}
+        data['time'] = time
+        data['time_unit'] = time_unit
+        data['event'] = event
+        data['zephyr'] = zephyr
+        api_post(:trigger, data)
+    end
+
+  # params
+  #   id, String
+  #   event, String
+  #   options, Hash (Can contain vars, Hash and/or key)
+  # Notify Sailthru of an Event
+    def post_event(id, event, options = {})
+        data = options
+        data['id'] = id
+        data['event'] = event
+        api_post(:event, data)
+    end
+
     # Perform API GET request
     def api_get(action, data)
       api_request(action, data, 'GET')
@@ -853,7 +942,7 @@ module Sailthru
         }
 
       rescue Exception => e
-        raise SailthruClientException.new("Unable to open stream: #{_uri}\n#{e}");
+        raise SailthruClientException.new(["Unable to open stream: #{_uri}", e.inspect, e.backtrace].join("\n"));
       end
 
       if response.body
