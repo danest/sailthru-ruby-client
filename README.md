@@ -1,3 +1,5 @@
+This gem add more features to the current sailthru gem version.
+
 sailthru-ruby-client
 ====================
 
