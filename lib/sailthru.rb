@@ -9,7 +9,7 @@ require 'net/http/post/multipart'
 
 module Sailthru
 
-  Version = VERSION = '1.15'
+  Version = VERSION = '1.16'
 
   class SailthruClientException < Exception
   end
@@ -321,7 +321,7 @@ module Sailthru
       data[:templates] = templates unless templates.empty?
       self.api_post(:email, data)
     end
-    
+
     # params:
     #   new_email, String
     #   old_email, String
@@ -336,7 +336,7 @@ module Sailthru
       data[:change_email] = old_email
       self.api_post(:email, data)
     end
-    
+
     # params:
     #   template_name, String
     # returns:
@@ -415,7 +415,7 @@ module Sailthru
         return false
       end
     end
-    
+
     # params:
     #   params, Hash
     #   request, String
@@ -586,14 +586,14 @@ module Sailthru
     # params
     #   list, String
     #
-    # Get information about a list. 
+    # Get information about a list.
     def get_list(list)
       return api_get(:list, {:list => list})
     end
 
     # params
     #
-    # Get information about all lists 
+    # Get information about all lists
     def get_lists()
         return api_get(:list, {})
     end
@@ -680,10 +680,10 @@ module Sailthru
       end
       api_post(:job, data, binary_key)
     end
-    
+
     # params
     #   emails, String | Array
-    # implementation for import_job  
+    # implementation for import_job
     def process_import_job(list, emails, report_email = nil, postback_url = nil)
       data = {}
       data['list'] = list
