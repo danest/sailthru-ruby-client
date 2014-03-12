@@ -2,12 +2,14 @@
 
 Gem::Specification.new do |s|
   s.name = "danest-sailthru-client"
-  s.version = "1.16"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Kevin Urrutia"]
   s.date = "2013-08-27"
   s.email = "urrutia.kevin@gmail.com"
+  s.name = "sailthru-client"
+  s.version = "2.0.0"
+
   s.extra_rdoc_files = ["README.md"]
   s.files = ["README.md", "lib/sailthru.rb"]
   s.homepage = "http://docs.sailthru.com"

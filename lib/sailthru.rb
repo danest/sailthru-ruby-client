@@ -9,9 +9,12 @@ require 'net/http/post/multipart'
 
 module Sailthru
 
-  Version = VERSION = '1.16'
+  Version = VERSION = '2.0.0'
 
   class SailthruClientException < Exception
+  end
+
+  class SailthruUnavailableException < Exception
   end
 
   module Helpers
@@ -102,13 +105,14 @@ module Sailthru
     #   api_uri, String
     #
     # Instantiate a new client; constructor optionally takes overrides for key/secret/uri and proxy server settings.
-    def initialize(api_key, secret, api_uri=nil, proxy_host=nil, proxy_port=nil)
+    def initialize(api_key, secret, api_uri=nil, proxy_host=nil, proxy_port=nil, opts={})
       @api_key = api_key
       @secret  = secret
       @api_uri = if api_uri.nil? then 'https://api.sailthru.com' else api_uri end
       @proxy_host = proxy_host
       @proxy_port = proxy_port
       @verify_ssl = true
+      @opts = opts
     end
 
     # params:
@@ -126,7 +130,7 @@ module Sailthru
     # http://docs.sailthru.com/api/send
     def send(template_name, email, vars={}, options = {}, schedule_time = nil)
       warn "[DEPRECATION] `send` is deprecated. Please use `send_email` instead."
-      send_email(template_name, email, vars={}, options = {}, schedule_time = nil)
+      send_email(template_name, email, vars, options, schedule_time)
     end
 
     # params:
@@ -384,6 +388,7 @@ module Sailthru
         return false unless params[:action] == :verify
 
         sig = params.delete(:sig)
+        sig = sig.delete_if {|key, value| key == :controller}
         return false unless sig == get_signature_hash(params, @secret)
 
         _send = self.get_send(params[:send_id])
@@ -406,9 +411,10 @@ module Sailthru
       if request.post?
         [:action, :email, :sig].each { |key| return false unless params.has_key?(key) }
 
-        return false unless params[:action] == :optout
+        return false unless params[:action] == 'optout'
 
         sig = params.delete(:sig)
+        sig = sig.delete_if {|key, value| key == :controller}
         return false unless sig == get_signature_hash(params, @secret)
         return true
       else
@@ -425,9 +431,10 @@ module Sailthru
       if request.post?
         [:action, :email, :sig].each { |key| return false unless params.has_key?(key) }
 
-        return false unless params[:action] == :hardbounce
+        return false unless params[:action] == 'hardbounce'
 
         sig = params.delete(:sig)
+        sig = sig.delete_if {|key, value| key == :controller}
         return false unless sig == get_signature_hash(params, @secret)
         return true
       else
@@ -684,38 +691,38 @@ module Sailthru
     # params
     #   emails, String | Array
     # implementation for import_job
-    def process_import_job(list, emails, report_email = nil, postback_url = nil)
-      data = {}
+    def process_import_job(list, emails, report_email = nil, postback_url = nil, options = {})
+      data = options
       data['list'] = list
       data['emails'] = Array(emails).join(',')
       process_job(:import, data, report_email, postback_url)
     end
 
     # implementation for import job using file upload
-    def process_import_job_from_file(list, file_path, report_email = nil, postback_url = nil)
-      data = {}
+    def process_import_job_from_file(list, file_path, report_email = nil, postback_url = nil, options = {})
+      data = options
       data['list'] = list
       data['file'] = file_path
       process_job(:import, data, report_email, postback_url, 'file')
     end
 
     # implementation for update job using file upload
-    def process_update_job_from_file(file_path, report_email = nil, postback_url = nil)
-      data = {}
+    def process_update_job_from_file(file_path, report_email = nil, postback_url = nil, options = {})
+      data = options
       data['file'] = file_path
       process_job(:update, data, report_email, postback_url, 'file')
     end
 
     # implementation for snapshot job
-    def process_snapshot_job(query = {}, report_email = nil, postback_url = nil)
-      data = {}
+    def process_snapshot_job(query = {}, report_email = nil, postback_url = nil, options = {})
+      data = options
       data['query'] = query
       process_job(:snapshot, data, report_email, postback_url)
     end
 
     # implementation for export list job
-    def process_export_list_job(list, report_email = nil, postback_url = nil)
-      data = {}
+    def process_export_list_job(list, report_email = nil, postback_url = nil, options = {})
+      data = options
       data['list'] = list
       process_job(:export_list_data, data, report_email, postback_url)
     end
@@ -935,12 +942,18 @@ module Sailthru
         if _uri.scheme == 'https'
             http.use_ssl = true
             http.verify_mode = OpenSSL::SSL::VERIFY_NONE if @verify_ssl != true  # some openSSL client doesn't work without doing this
+            http.ssl_timeout = @opts[:http_ssl_timeout] || 5
         end
+        http.open_timeout = @opts[:http_open_timeout] || 5
+        http.read_timeout = @opts[:http_read_timeout] || 10
+        http.close_on_empty_response = @opts[:http_close_on_empty_response] || true
 
         response = http.start {
             http.request(req)
         }
 
+      rescue Timeout::Error, Errno::ETIMEDOUT => e
+        raise SailthruUnavailableException.new(["Timed out: #{_uri}", e.inspect, e.backtrace].join("\n"));
       rescue Exception => e
         raise SailthruClientException.new(["Unable to open stream: #{_uri}", e.inspect, e.backtrace].join("\n"));
       end
